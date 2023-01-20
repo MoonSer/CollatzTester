@@ -4,13 +4,21 @@ import numpy as np
 
 class CollatzSolver:
     def __init__(self, *args):
+        if len(args) == 1 and (type(args) is tuple or type(args) is list):
+            args = args[0]
+        if len(args) % 2 == 0:
+            raise Exception("Errors! Must be odd argument's count")
         if len(args) < 3:
             raise Exception("Less than 3 args! Must be \"s1, q1, s2, ...\"")
         self.qs = list(args)
-        self.bases = np.array(diophantSolution(*getCoeffs(*args))[::-1])
-        self.temps = [abs(a) for a in getCoeffs(*args[:3])[:2]]
-        
+
+        collatzCoeffs = getCoeffs(*args[:3])
+        self.bases = np.array(diophantSolution(*collatzCoeffs)[::-1])
+        self.temps = [abs(a) for a in collatzCoeffs[:2]]
         self.cropBases()
+
+        for i in range(3, len(args), 2):
+            self.nextIteration(args[i], args[i+1])
 
 
     def cropBases(self):
@@ -109,6 +117,7 @@ def main():
     d.nextIteration(1, 3)
     print(d.getMStr())
     print(d.getSolution())
+    print(d.getSolution() == CollatzSolver([3, 2, 3, 1, 3]).getSolution())
     # print(collatz(d.getSolution()[0]))
 
 if __name__ == "__main__":
