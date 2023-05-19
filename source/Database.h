@@ -10,10 +10,10 @@ class Database
 public:
     Database();
 
-    mongocxx::client &pool() noexcept;
+    mongocxx::pool::entry Pool() noexcept;
 
 private:
-    std::string_view database_name_;
+    static std::string_view database_name;
     mongocxx::instance mongodb_instance_;
     mongocxx::pool mongodb_pool_;
 };

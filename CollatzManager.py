@@ -1,5 +1,5 @@
 from sys import exit
-from math import trunc
+from math import gcd, trunc
 import numpy as np
 
 class CollatzSolver:
@@ -22,8 +22,9 @@ class CollatzSolver:
 
 
     def cropBases(self):
+        print("=====", self.bases, self.temps)
         for i in range(len(self.bases)):
-            if (self.bases[i] // self.temps[i] > 0):
+            if (self.bases[i] // self.temps[i] > 0 or self.bases[i] < 0):
                 self.bases[i] -= self.temps[i]*(self.bases[i] // self.temps[i])
 
     def getM(self):
@@ -32,7 +33,7 @@ class CollatzSolver:
     def getSolution(self):
         sPatternItems = list()
         m = self.getM()
-        for i in range(0, len(self.bases), 2):
+        for i in range(0, len(self.bases)):
             sPatternItems.append(2**self.qs[2*i] * m[i] - 1)
         return sPatternItems
 
@@ -81,7 +82,8 @@ def diophantSolution(A, B, C = 1):
         coeffs[1] = -1
         B = abs(B)
     
-    return np.array(solve(A, B, coeffs))*C
+    solution = [s*C for s in solve(A, B, coeffs)]
+    return [solution[i] - (solution[i]//[B, A][i])*[B, A][i] for i in range(len(solution))]
 
 def count2(v):
     if v%2 == 1:
@@ -106,19 +108,20 @@ def main():
     print("\nTest:", q)
 
     d = CollatzSolver(*q)
+    print(diophantSolution(*getCoeffs(*q)))
     print(d.getMStr())
     print(d.getSolution())
     # collatz(d.getSolution()[0])
 
-    print()
-    print()
+    # print()
+    # print()
 
-    print("Test:", list(q) + [1, 3])
-    d.nextIteration(1, 3)
-    print(d.getMStr())
-    print(d.getSolution())
-    print(d.getSolution() == CollatzSolver([3, 2, 3, 1, 3]).getSolution())
-    # print(collatz(d.getSolution()[0]))
+    # print("Test:", list(q) + [1, 3])
+    # d.nextIteration(1, 3)
+    # print(d.getMStr())
+    # print(d.getSolution())
+    # print(d.getSolution() == CollatzSolver([3, 2, 3, 1, 3]).getSolution())
+    # # print(collatz(d.getSolution()[0]))
 
 if __name__ == "__main__":
     main()
