@@ -26,9 +26,11 @@ void ThreadPool<ReturnType, ArgType>::_StartThread(std::function<ReturnType(cons
     auto client = mongodb_pool_.acquire();
     while (elements_holder_.HasNext())
     {
-        mutex_.lock();
-        const auto &value = elements_holder_.Next();
-        mutex_.unlock();
+        ArgType value;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            value = elements_holder_.Next();
+        }
 
         _SaveResult(client, value, func(value));
     }
@@ -37,4 +39,5 @@ void ThreadPool<ReturnType, ArgType>::_StartThread(std::function<ReturnType(cons
 template <typename ReturnType, typename ArgType>
 void _SaveResult(mongocxx::client &client, const ArgType &value, const ReturnType &return_value)
 {
+    db_.Save(client, value, return_value);
 }

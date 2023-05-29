@@ -1,53 +1,62 @@
+#include "CollatzSolver.h"
+
 #include <iostream>
-#include <tuple>
-#include <chrono>
-#include <numeric>
 
-void solve(int A, int B, int *result) {
-	if (A == 0) {
-		result[0] = 0;
-		result[1] = 1;
-		return;
-	}
-	
-	int xy[2];
-	solve(B%A, A, xy);
-	result[0] = (xy[1] - (B/A)*xy[0]);
-	result[1] = xy[0];
+CollatzSolver::CollatzSolver(const std::vector<uint64_t> &sqs_sequence)
+    : sqs_sequence_(sqs_sequence), solution_(sqs_sequence_)
+{
+    if (sqs_sequence_.size() < 3 || sqs_sequence_.size() % 2 == 0)
+    {
+        throw std::runtime_error("Sqs sequence len must be more or equal than 3 and odd!");
+    }
+    iter_ = sqs_sequence_.begin();
 }
 
+std::optional<CollatzSolution> CollatzSolver::Solve() noexcept
+{
+    while (iter_ != --sqs_sequence_.end())
+    {
+        mpz_class x, y, g;
+        auto [a, b, c] = GetCoeffs_();
 
-void diophantSolution(int A, int B, int C, int *result) {
-    int coeff0 = 1;
-	int coeff1 = 1;
-    if (A < 0) {
-        coeff0 = -1;
-        A = abs(A);
-	}
-    
-    if (B < 0) {
-        coeff1 = -1;
-        B = abs(B);
-	}
-    
-	int solution[2];
-	solve(A, B, solution);
+        // Solve dioph equation and get x,y coeffs: ax + by = g
+        mpz_gcdext(g.get_mpz_t(), x.get_mpz_t(), y.get_mpz_t(), a.get_mpz_t(), b.get_mpz_t());
 
-    result[0] = coeff0*(solution[0] - (solution[0]/B)*B);
-	result[1] = coeff1*(solution[1] - (solution[1]/A)*A);
-    // return [solution[i] - (solution[i]/[B, A][i])*[B, A][i] for i in range(len(solution))]
-}
-
-class DiophantSolver {
-    public:
-        void operator()(int a, int b, int c) {
-
+        if (c % g != 0)
+        {
+            return std::nullopt;
         }
-};
+        // mpz_abs(b.get_mpz_t(), b.get_mpz_t());
 
+        c /= g;
+        x *= c;
+        y *= c;
 
+        b /= g;
+        a /= -g;
 
+        // Save solution
+        solution_.RecalculateSolution(x, y, a, b);
+        std::cout << solution_ << "\n";
+    }
+    return solution_;
+}
 
-int main() {
-    return 0;
+std::tuple<mpz_class, mpz_class, mpz_class> CollatzSolver::GetCoeffs_() const noexcept
+{
+    bool is_first = (iter_ == sqs_sequence_.begin());
+    mpz_class a = 3, b = 2, c = 2;
+    uint64_t s1 = *iter_;
+    uint64_t q1 = *(++iter_);
+    uint64_t s2 = *(++iter_);
+
+    mpz_pow_ui(a.get_mpz_t(), a.get_mpz_t(), s1);
+    mpz_pow_ui(b.get_mpz_t(), b.get_mpz_t(), q1 + s2);
+    mpz_pow_ui(c.get_mpz_t(), c.get_mpz_t(), q1);
+
+    if (is_first)
+    {
+        return std::make_tuple(a, -b, 1 - c);
+    }
+    return std::make_tuple(a * solution_.LastAddition(), -b, 1 - c - a * solution_.LastBase());
 }

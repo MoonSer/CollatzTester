@@ -2,20 +2,35 @@
 #ifndef DATABASE_H
 #define DATABASE_H
 
-#include <mongocxx/instance.hpp>
-#include <mongocxx/pool.hpp>
+#include <cassandra.h>
+#include <utility>
+#include <memory>
+#include <string>
 
+#include "CollatzSolution.h"
+
+/// @brief Класс выполняет запросы и иницализирует Базу Данных
 class Database
 {
 public:
-    Database();
+    /// @brief Конструктор, устанавливает настройки соединения
+    Database() noexcept;
 
-    mongocxx::pool::entry Pool() noexcept;
+    bool SetUp() noexcept;
+
+    bool Insert(CollatzSolution &solution) noexcept;
+
+    const std::string GetLastError() const noexcept;
 
 private:
-    static std::string_view database_name;
-    mongocxx::instance mongodb_instance_;
-    mongocxx::pool mongodb_pool_;
+    bool CheckResult(CassFuture *future) noexcept;
+
+private:
+    CassFuture *connect_future_;
+    CassCluster *cluster_;
+    CassSession *session_;
+
+    std::string last_error_;
 };
 
 #endif
