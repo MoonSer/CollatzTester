@@ -68,8 +68,8 @@ public:
             // crop
             base_[i] -= cropModifier * addition_[i];
         }
-
-        y -= cropModifier * a;
+        cropModifier *= a;
+        y -= cropModifier;
         base_.push_back(y);
         addition_.push_back(a);
     }
@@ -92,36 +92,37 @@ public:
         return c;
     }
 
-    std::tuple<CassResult, CassResult, bool> GetCassResult() const noexcept
+    std::tuple<std::pair<CassResult, CassResult>, std::pair<CassResult, CassResult>, bool> GetCassResult() const noexcept
     {
-        mpz_class first_member = 2, last_member = 2;
-        mpz_pow_ui(first_member.get_mpz_t(), first_member.get_mpz_t(), sqs_sequence_.front());
-        mpz_pow_ui(last_member.get_mpz_t(), last_member.get_mpz_t(), sqs_sequence_.back());
+        mpz_class s1_exp = 2, sn_exp = 2;
+        mpz_pow_ui(s1_exp.get_mpz_t(), s1_exp.get_mpz_t(), sqs_sequence_.front());
+        mpz_pow_ui(sn_exp.get_mpz_t(), sn_exp.get_mpz_t(), sqs_sequence_.back());
 
-        mpz_class divisible = addition_.back() * last_member - addition_.front() * first_member;
+        mpz_class divisible = std::move(addition_.back() * sn_exp);
+        divisible -= addition_.front() * s1_exp;
 
-        first_member *= base_.front();
-        last_member *= base_.back();
+        s1_exp *= base_.front();
+        sn_exp *= base_.back();
+        s1_exp -= sn_exp;
 
-        first_member -= last_member;
-        mpz_class divider = std::move(first_member);
+        mpz_class divider = std::move(s1_exp);
 
         // @TODO Use m0 + m1 * t instead m0
-        // @TODO Recreate table with t-value
 
-        return std::make_tuple(GetCassResult(base_.back()), GetCassResult(last_member), mpz_divisible_p(divisible.get_mpz_t(), divider.get_mpz_t()) > 0);
+        return std::make_tuple(std::make_pair(GetCassResult(base_.front()), GetCassResult(addition_.front())),
+                               std::make_pair(GetCassResult(base_.back()), GetCassResult(addition_.back())),
+                               (mpz_divisible_p(divisible.get_mpz_t(), divider.get_mpz_t()) > 0));
     }
 
-    bool IsSequence() const noexcept
+    CassCollection *GetCassSequense() const noexcept
     {
-        mpz_class z = 2, q = 2;
-        mpz_pow_ui(z.get_mpz_t(), z.get_mpz_t(), sqs_sequence_.front());
-        mpz_pow_ui(q.get_mpz_t(), q.get_mpz_t(), sqs_sequence_.back());
+        CassCollection *cass_collection(cass_collection_new(CASS_COLLECTION_TYPE_LIST, sqs_sequence_.size()));
 
-        mpz_class divisible = addition_.back() * q - addition_.front() * z;
-        mpz_class divider = base_.front() * z - base_.back() * q;
-
-        return (mpz_divisible_p(divisible.get_mpz_t(), divider.get_mpz_t()) > 0);
+        for (const auto &sequence_member : sqs_sequence_)
+        {
+            cass_collection_append_int64(cass_collection, sequence_member);
+        }
+        return cass_collection;
     }
 
 private:
@@ -132,7 +133,7 @@ private:
         std::unique_ptr<cass_byte_t[]> data(new cass_byte_t[size]);
 
         mpz_export(data.get(), nullptr, 1, size, 0, 0, value.get_mpz_t());
-        return std::make_pair(data, size);
+        return std::make_pair(std::move(data), size);
     }
 
 private:

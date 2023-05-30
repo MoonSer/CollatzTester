@@ -37,7 +37,6 @@ std::optional<CollatzSolution> CollatzSolver::Solve() noexcept
 
         // Save solution
         solution_.RecalculateSolution(x, y, a, b);
-        std::cout << solution_ << "\n";
     }
     return solution_;
 }
