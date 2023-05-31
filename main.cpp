@@ -145,19 +145,25 @@ constexpr std::string_view Query = "SELECT * FROM Tester;";
 //     mpz_import(t2.get_mpz_t(), 1, 1, mpz_size(t.get_mpz_t()) * mp_bits_per_limb / 8, 0, 0, decimal.data());
 //     std::cout << "Imported: " << t2 << " " << (t == t2) << "\n";
 // }
-
 int main()
 {
-    std::vector<uint64_t> q = {3, 2, 1};
+    std::vector<uint64_t> q = {4, 3, 1};
     CollatzSolution s(q);
     s.RecalculateSolution(mpz_class(7), mpz_class(6), mpz_class(32), mpz_class(27));
 
     Database d;
-    if (!d.SetUp())
+    auto [is_done, error_msg] = d.SetUp();
+    if (!is_done)
     {
-        std::cout << d.GetLastError() << "\n";
+        std::cout << error_msg << "\n";
+        return 1;
     }
-    d.Select();
+    auto session = d.GetInstance();
+    if (!session->Insert(s))
+    {
+        std::cout << session->GetLastError() << "\n";
+    }
+    session->Select();
     // /* Setup and connect to cluster */
     // CassFuture *connect_future = NULL;
     // CassCluster *cluster = cass_cluster_new();

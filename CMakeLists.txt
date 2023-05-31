@@ -6,10 +6,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_COLOR_MAKEFILE ON)
 
 add_executable(${PROJECT_NAME} main.cpp
-    # source/CollatzSolution.h
-    # source/CollatzSolver.h
-    # source/CollatzSolver.cpp)
-    source/Database.cpp)
+# source/CollatzSolver.h
+# source/CollatzSolver.cpp)
+    source/CollatzSolution.cpp
+    source/Database.cpp
+    source/DatabaseInstance.cpp)
     # source/ElementsHolder.h 
     # source/ThreadPool.h 
     # source/ThreadPool.cpp)
