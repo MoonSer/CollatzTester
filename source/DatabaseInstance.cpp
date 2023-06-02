@@ -5,7 +5,7 @@ DatabaseInstance::DatabaseInstance(CassSession *session)
 {
 }
 
-bool DatabaseInstance::Insert(const CollatzSolution &solution) noexcept
+bool DatabaseInstance::Insert(CollatzSolution &&solution) noexcept
 {
      CassStatement *statement = cass_statement_new("INSERT INTO Collatz (first_base, first_addition, second_base, second_addition, sqs_sequence, is_cycle) VALUES (?, ?, ?, ?, ?, ?);", 6);
      { // Prepare statement
@@ -69,39 +69,59 @@ bool DatabaseInstance::SimpleExecute(std::string_view query) noexcept
      return executionResult;
 }
 
-void DatabaseInstance::Select() noexcept
+std::vector<uint64_t> DatabaseInstance::GetMax() noexcept
 {
-     CassStatement *statement = cass_statement_new("SELECT * FROM Collatz WHERE is_cycle IN (false, true);", 0);
+     CassStatement *statement = cass_statement_new("SELECT MAX(sqs_sequence) FROM Collatz WHERE is_cycle IN (false, true);", 0);
      CassFuture *query_future = cass_session_execute(session_, statement);
      cass_statement_free(statement);
+
      bool executionResult = CheckResult(query_future);
      if (!executionResult)
      {
           std::cout << this->last_error_ << "\n";
-          return;
+          return {};
      }
 
      const CassResult *result = cass_future_get_result(query_future);
-
      const CassRow *row = cass_result_first_row(result);
+     const CassValue *value = cass_row_get_column(row, 0);
 
-     /* Now we can retrieve the column values from the row */
-     const cass_byte_t *first;
-     size_t size;
-     cass_int32_t scale;
+     std::vector<uint64_t> values;
+     if (value != nullptr)
+     {
+          auto number_collector = [](const int count, const cass_byte_t *array) -> uint64_t
+          {
+               uint64_t value = array[0];
+               for (int i = 1; i < count; ++i)
+               {
+                    value <<= 8;
+                    value += array[i];
+               }
+               return value;
+          };
+          const cass_byte_t *first;
+          size_t size;
+          cass_value_get_bytes(value, &first, &size);
 
-     /* Get the column value of "key" by name */
-     cass_value_get_(cass_row_get_column_by_name(row, "sqs_sequence"), &first, &size, &scale);
-     std::cout << size << '\n';
-     // for (int i = 0; i < size; ++i)
-     // {
-     // std::cout << first[i] << "\n";
-     // }
+          size = number_collector(4, first);
 
-     mpz_class a;
-     mpz_import(a.get_mpz_t(), 1, 1, size, 0, 0, first);
-     std::cout << a << '\n';
+          uint64_t i = 4;
+          for (; size > 0; --size)
+          {
+               i += 4;
+               values.emplace_back(number_collector(8, first + i));
+               i += 8;
+          }
+     }
+
+     // mpz_import(a.get_mpz_t(), 1, 1, size, 0, 0, first);
 
      cass_result_free(result);
      cass_future_free(query_future);
+
+     if (value == nullptr)
+     {
+          values = {1, 1, 0};
+     }
+     return values;
 }

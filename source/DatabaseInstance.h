@@ -21,7 +21,7 @@ public:
      /// @brief Добавляет запись с CollatzSolution
      /// @param[in] solution Решение Диофантова уравнения для добавления
      /// @return true, если вставка выполнена успешно
-     bool Insert(const CollatzSolution &solution) noexcept;
+     bool Insert(CollatzSolution &&solution) noexcept;
 
      /// @brief Выполняет простой запрос к БД (без результата запроса и подготовки переменных)
      /// @param query запрос для выполнения
@@ -32,7 +32,9 @@ public:
      /// @return строка ошибки
      const std::string GetLastError() const noexcept;
 
-     void Select() noexcept;
+     /// @brief Возвращает последнюю вычисленную sqs-последовательность
+     /// @return sqs-последовательность
+     std::vector<uint64_t> GetMax() noexcept;
 
 private:
      /// @brief Проверяет результат выполнения Запроса к Cassandra

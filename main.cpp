@@ -145,25 +145,28 @@ constexpr std::string_view Query = "SELECT * FROM Tester;";
 //     mpz_import(t2.get_mpz_t(), 1, 1, mpz_size(t.get_mpz_t()) * mp_bits_per_limb / 8, 0, 0, decimal.data());
 //     std::cout << "Imported: " << t2 << " " << (t == t2) << "\n";
 // }
+#include "source/ThreadPool.h"
+
 int main()
 {
-    std::vector<uint64_t> q = {4, 3, 1};
-    CollatzSolution s(q);
-    s.RecalculateSolution(mpz_class(7), mpz_class(6), mpz_class(32), mpz_class(27));
+    ThreadPool pool(5, std::make_unique<ElementsHolder>(std::vector<uint64_t>{1, 1, 1}, 5, 5));
+    pool.Execute();
+    // std::vector<uint64_t> q = {2, 5, 6};
+    // CollatzSolution s(q);
+    // s.RecalculateSolution(mpz_class(7), mpz_class(6), mpz_class(32), mpz_class(27));
 
-    Database d;
-    auto [is_done, error_msg] = d.SetUp();
-    if (!is_done)
-    {
-        std::cout << error_msg << "\n";
-        return 1;
-    }
-    auto session = d.GetInstance();
-    if (!session->Insert(s))
-    {
-        std::cout << session->GetLastError() << "\n";
-    }
-    session->Select();
+    // Database d;
+    // auto [is_done, error_msg] = d.SetUp();
+    // if (!is_done)
+    // {
+    //     std::cout << error_msg << "\n";
+    //     return 1;
+    // }
+    // auto session = d.GetInstance();
+    // session->Insert(s);
+    // const auto value = session->GetMax();
+    // for (const auto &i : value)
+    //     std::cout << i << "\n";
     // /* Setup and connect to cluster */
     // CassFuture *connect_future = NULL;
     // CassCluster *cluster = cass_cluster_new();

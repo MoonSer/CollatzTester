@@ -1,9 +1,10 @@
 #include "CollatzSolver.h"
 
 #include <iostream>
+#include <stdexcept>
 
-CollatzSolver::CollatzSolver(const std::vector<uint64_t> &sqs_sequence)
-    : sqs_sequence_(sqs_sequence), solution_(sqs_sequence_)
+CollatzSolver::CollatzSolver(std::vector<uint64_t> &&sqs_sequence)
+    : sqs_sequence_(std::move(sqs_sequence)), solution_(sqs_sequence_)
 {
     if (sqs_sequence_.size() < 3 || sqs_sequence_.size() % 2 == 0)
     {
@@ -12,7 +13,7 @@ CollatzSolver::CollatzSolver(const std::vector<uint64_t> &sqs_sequence)
     iter_ = sqs_sequence_.begin();
 }
 
-std::optional<CollatzSolution> CollatzSolver::Solve() noexcept
+CollatzSolution CollatzSolver::Solve() noexcept
 {
     while (iter_ != --sqs_sequence_.end())
     {
@@ -24,7 +25,7 @@ std::optional<CollatzSolution> CollatzSolver::Solve() noexcept
 
         if (c % g != 0)
         {
-            return std::nullopt;
+            throw std::runtime_error("Error: " + a.get_str() + " : " + b.get_str() + " : " + c.get_str());
         }
         // mpz_abs(b.get_mpz_t(), b.get_mpz_t());
 

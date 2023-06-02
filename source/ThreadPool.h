@@ -2,31 +2,28 @@
 #ifndef THREAD_POOL_H
 #define THREAD_POOL_H
 
-#include <thread>
 #include <vector>
 #include <mutex>
-#include <functional>
+#include <memory>
 
 #include "ElementsHolder.h"
 #include "Database.h"
 
-template <typename ReturnType, typename ArgType>
 class ThreadPool
 {
 public:
-    ThreadPool(uint64_t threads_count, ElementsHolder<ArgType> elements_holder) noexcept;
+    ThreadPool(uint64_t threads_count, std::unique_ptr<ElementsHolder> elements_holder) noexcept;
 
-    void Execute(std::function<ReturnType(const ArgType &)> func) noexcept;
+    void Execute() noexcept;
 
 private:
-    void _StartThread(std::function<ReturnType(const ArgType &)> func) noexcept;
-    void _SaveResult(mongocxx::client &client, const ArgType &value, const ReturnType &return_value);
+    void _StartThread(const std::vector<uint64_t> &value) noexcept;
 
 private:
     Database db_;
     std::mutex mutex_;
     uint64_t threads_count_;
-    ElementsHolder<ArgType> elements_holder_;
+    std::unique_ptr<ElementsHolder> elements_holder_;
 };
 
 #endif // THREAD_POOL_H

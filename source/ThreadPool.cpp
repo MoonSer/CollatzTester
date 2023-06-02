@@ -1,18 +1,24 @@
 #include "ThreadPool.h"
 
-template <typename ReturnType, typename ArgType>
-ThreadPool<ReturnType, ArgType>::ThreadPool(uint64_t threads_count, ElementsHolder<ArgType> elements_holder) noexcept
-    : threads_count_(threads_count), elements_holder_(elements_holder)
+#include <thread>
+#include "CollatzSolver.h"
+
+#include <iostream>
+
+ThreadPool::ThreadPool(uint64_t threads_count, std::unique_ptr<ElementsHolder> elements_holder) noexcept
+    : threads_count_(threads_count), elements_holder_(std::move(elements_holder))
 {
 }
 
-template <typename ReturnType, typename ArgType>
-void ThreadPool<ReturnType, ArgType>::Execute(std::function<ReturnType(const ArgType &)> func) noexcept
+void ThreadPool::Execute() noexcept
 {
     std::vector<std::thread> threads;
-    for (uint64_t i = 0; i < threads_count_; ++i)
     {
-        threads.emplace_back(&ThreadPool<ReturnType, ArgType>::_StartThread, this, func);
+        std::lock_guard<std::mutex> guard(mutex_);
+        for (uint64_t i = 0; i < threads_count_ && elements_holder_->HasNext(); ++i)
+        {
+            threads.emplace_back(&ThreadPool::_StartThread, this, elements_holder_->Next());
+        }
     }
 
     for (auto &thread : threads)
@@ -20,24 +26,23 @@ void ThreadPool<ReturnType, ArgType>::Execute(std::function<ReturnType(const Arg
             thread.join();
 }
 
-template <typename ReturnType, typename ArgType>
-void ThreadPool<ReturnType, ArgType>::_StartThread(std::function<ReturnType(const ArgType &)> func) noexcept
+void ThreadPool::_StartThread(const std::vector<uint64_t> &value) noexcept
 {
-    auto client = mongodb_pool_.acquire();
-    while (elements_holder_.HasNext())
+    std::shared_ptr<DatabaseInstance> db = db_.GetInstance();
+    while (true)
     {
-        ArgType value;
+        std::vector<uint64_t> sqs_sequence;
         {
-            std::lock_guard<std::mutex> lock(mutex_);
-            value = elements_holder_.Next();
+            std::lock_guard<std::mutex> guard(mutex_);
+            if (!elements_holder_->HasNext())
+            {
+                break;
+            }
+            sqs_sequence = std::move(elements_holder_->Next());
         }
-
-        _SaveResult(client, value, func(value));
+        CollatzSolver solver(std::move(sqs_sequence));
+        auto solution = std::move(solver.Solve());
+        std::cout << solution << "\n";
+        // db->Insert(std::move(solver.Solve()));
     }
-}
-
-template <typename ReturnType, typename ArgType>
-void _SaveResult(mongocxx::client &client, const ArgType &value, const ReturnType &return_value)
-{
-    db_.Save(client, value, return_value);
 }

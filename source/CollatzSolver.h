@@ -12,9 +12,9 @@
 class CollatzSolver
 {
 public:
-    CollatzSolver(const std::vector<uint64_t> &sqs_sequence);
+    CollatzSolver(std::vector<uint64_t> &&sqs_sequence);
 
-    std::optional<CollatzSolution> Solve() noexcept;
+    CollatzSolution Solve() noexcept;
 
 private:
     std::tuple<mpz_class, mpz_class, mpz_class> GetCoeffs_() const noexcept;

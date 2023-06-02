@@ -9,6 +9,7 @@
 #include <iostream>
 #include <cstdint>
 #include <memory>
+#include <memory>
 
 /// @brief В этом типе хранятся данные экспорта из gmp (mpc_class) в decimal тип для Cassandra
 using CassDecimal = std::pair<std::unique_ptr<uint8_t[]>, size_t>;
@@ -45,6 +46,25 @@ public:
 
     CassCollection *GetCassSequense() const noexcept;
 
+    friend std::ostream &operator<<(std::ostream &s, const CollatzSolution &solution)
+    {
+        std::lock_guard<std::mutex> guard(CollatzSolution::m_);
+        s << "Sequence:\n";
+        for (const auto &v : solution.sqs_sequence_)
+        {
+            s << v << " ";
+        }
+        s << "\nSolution:\n";
+        for (int i = 0; i < solution.base_.size(); ++i)
+        {
+            s << solution.base_[i] << " + " << solution.addition_[i] << "t"
+              << "; ";
+        }
+        s << "\n"
+          << std::flush;
+        return s;
+    }
+
 private:
     /// @brief Конвертирует mpz_class в CassDecimal
     /// @param[in] value переменная для конвертации
@@ -55,6 +75,7 @@ private:
     std::vector<uint64_t> &sqs_sequence_;
     std::vector<mpz_class> base_;
     std::vector<mpz_class> addition_;
+    static std::mutex m_;
 };
 
 #endif
