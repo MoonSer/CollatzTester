@@ -2,8 +2,6 @@
 
 #include <cassandra.h>
 
-std::mutex CollatzSolution::m_ = std::mutex();
-
 CollatzSolution::CollatzSolution(std::vector<uint64_t> &sqs_sequence)
     : sqs_sequence_(sqs_sequence) {}
 

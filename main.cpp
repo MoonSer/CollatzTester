@@ -147,10 +147,73 @@ constexpr std::string_view Query = "SELECT * FROM Tester;";
 // }
 #include "source/ThreadPool.h"
 
+#include <thread>
+#include <iostream>
+#include <functional>
+#include <numeric>
+#include <chrono>
+bool end = false;
+void TotalPrinter(std::shared_ptr<ElementsHolder> holder)
+{
+    std::cout << "\nStat: " << holder->GetDoneCount() << "/" << holder->GetTotalCount();
+    while (!end)
+    {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::cout << "\rStat: " << holder->GetDoneCount() << "/" << holder->GetTotalCount() << "     " << std::flush;
+    }
+}
+
+uint64_t Execute(std::function<void()> function, int times)
+{
+    std::vector<std::chrono::steady_clock::duration> time;
+    for (uint64_t i = 0; i < times; ++i)
+    {
+        auto now = std::chrono::steady_clock::now();
+        function();
+        time.emplace_back(std::chrono::steady_clock::now() - now);
+    }
+
+    auto count = std::chrono::duration_cast<std::chrono::milliseconds>(std::accumulate(time.begin(), time.end(), std::chrono::steady_clock::duration(0))).count();
+    return count / time.size();
+}
+#include <map>
 int main()
 {
-    ThreadPool pool(5, std::make_unique<ElementsHolder>(std::vector<uint64_t>{1, 1, 1}, 5, 5));
-    pool.Execute();
+    std::map<uint64_t, uint64_t> times;
+    for (uint64_t i = 2; i < 60; i += 2)
+    {
+        auto time = Execute([&i]()
+                            { 
+            auto holder = std::make_shared<ElementsHolder>(std::vector<uint64_t>{8, 8, 8}, 15, 5); 
+            ThreadPool pool(i, holder);
+            pool.Execute(); },
+                            30);
+        std::cout << "Threads: " << i << ". Average time: " << time << " ms\n";
+        times.emplace(time, i);
+        // end = false;
+        // auto holder = std::make_shared<ElementsHolder>(std::vector<uint64_t>{10, 18, 18}, 20, 5);
+        // std::thread t(&TotalPrinter, holder);
+        // auto cur = std::chrono::system_clock::now();
+        // ThreadPool pool(4, holder);
+        // pool.Execute();
+        // std::cout << "i: " << i << ". Elapsed: " << (std::chrono::system_clock::now() - cur).count() << "\n";
+
+        // end = true;
+        // if (t.joinable())
+        //     t.join();
+    }
+
+    std::cout << "Min: " << times.begin()->first << " ms  -  " << times.begin()->second << " threads\n";
+
+    // while (holder.HasNext())
+    // {
+    //     const auto values = holder.Next();
+    //     for (const auto &v : values)
+    //     {
+    //         f << v << " ";
+    //     }
+    //     f << "\n";
+    // }
     // std::vector<uint64_t> q = {2, 5, 6};
     // CollatzSolution s(q);
     // s.RecalculateSolution(mpz_class(7), mpz_class(6), mpz_class(32), mpz_class(27));

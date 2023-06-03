@@ -48,7 +48,6 @@ public:
 
     friend std::ostream &operator<<(std::ostream &s, const CollatzSolution &solution)
     {
-        std::lock_guard<std::mutex> guard(CollatzSolution::m_);
         s << "Sequence:\n";
         for (const auto &v : solution.sqs_sequence_)
         {
@@ -60,8 +59,7 @@ public:
             s << solution.base_[i] << " + " << solution.addition_[i] << "t"
               << "; ";
         }
-        s << "\n"
-          << std::flush;
+        s << "\n";
         return s;
     }
 
@@ -75,7 +73,6 @@ private:
     std::vector<uint64_t> &sqs_sequence_;
     std::vector<mpz_class> base_;
     std::vector<mpz_class> addition_;
-    static std::mutex m_;
 };
 
 #endif
