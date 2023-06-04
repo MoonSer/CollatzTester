@@ -1,8 +1,6 @@
 #include "CollatzSolution.h"
 
-#include <cassandra.h>
-
-CollatzSolution::CollatzSolution(std::vector<uint64_t> &sqs_sequence)
+CollatzSolution::CollatzSolution(std::deque<uint64_t> &sqs_sequence)
     : sqs_sequence_(sqs_sequence) {}
 
 const mpz_class &CollatzSolution::LastBase() const noexcept

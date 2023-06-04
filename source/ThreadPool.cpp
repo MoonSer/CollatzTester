@@ -1,11 +1,16 @@
 #include "ThreadPool.h"
 
-#include <thread>
 #include "CollatzSolver.h"
+#include "FutureHolder.h"
 
-ThreadPool::ThreadPool(uint64_t threads_count, std::shared_ptr<ElementsHolder> elements_holder) noexcept
+ThreadPool::ThreadPool(uint64_t threads_count, std::shared_ptr<ElementsHolder> elements_holder)
     : threads_count_(threads_count), elements_holder_(elements_holder)
 {
+    auto [is_done, errror] = db_.SetUp();
+    if (!is_done)
+    {
+        throw std::runtime_error(errror);
+    }
 }
 
 void ThreadPool::Execute() noexcept
@@ -26,17 +31,36 @@ void ThreadPool::Execute() noexcept
             thread.join();
 }
 
-void ThreadPool::_StartThread(std::vector<uint64_t> value) noexcept
+void ThreadPool::_StartThread(std::deque<uint64_t> value) noexcept
 {
-    std::shared_ptr<DatabaseInstance> db = db_.GetInstance();
+    std::unique_ptr<DatabaseInstance> db = db_.GetInstance();
     do
     {
+#ifdef DEBUG
+        auto now = std::chrono::system_clock::now();
+#endif
+
         CollatzSolver solver(std::move(value));
-        auto solution = std::move(solver.Solve());
-        // {
-        //     std::lock_guard<std::mutex> guard(mutex_);
-        //     f_ << solution << "\n";
-        // }
+
+#ifdef DEBUG
+        auto count = (std::chrono::system_clock::now() - now);
+        {
+            std::lock_guard<std::mutex> guard(mutex_);
+            times_.emplace_back(TimeType::Solution, count);
+        }
+        now = std::chrono::system_clock::now();
+#endif
+
+        db->Insert(std::move(solver.Solve()));
+#ifdef DEBUG
+        count = (std::chrono::system_clock::now() - now);
+        {
+            std::lock_guard<std::mutex> guard(mutex_);
+            times_.emplace_back(TimeType::Insertion, count);
+        }
+        now = std::chrono::system_clock::now();
+#endif
+
         {
             std::lock_guard<std::mutex> guard(mutex_);
             if (!elements_holder_->HasNext())
@@ -45,6 +69,16 @@ void ThreadPool::_StartThread(std::vector<uint64_t> value) noexcept
             }
             value = std::move(elements_holder_->Next());
         }
-        // db->Insert(std::move(solver.Solve()));
+
+#ifdef DEBUG
+        count = (std::chrono::system_clock::now() - now);
+        {
+            std::lock_guard<std::mutex> guard(mutex_);
+            times_.emplace_back(TimeType::NextIter, count);
+        }
+#endif
+        sleep(0);
+
     } while (true);
+    FutureHolder::instance().WaitUntillComplete();
 }

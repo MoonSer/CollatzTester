@@ -1,11 +1,13 @@
 #include "DatabaseInstance.h"
 
+#include "FutureHolder.h"
+
 DatabaseInstance::DatabaseInstance(CassSession *session)
-    : session_(session), last_error_("No error")
+    : session_(session)
 {
 }
 
-bool DatabaseInstance::Insert(CollatzSolution &&solution) noexcept
+void DatabaseInstance::Insert(CollatzSolution &&solution) noexcept
 {
      CassStatement *statement = cass_statement_new("INSERT INTO Collatz (first_base, first_addition, second_base, second_addition, sqs_sequence, is_cycle) VALUES (?, ?, ?, ?, ?, ?);", 6);
      { // Prepare statement
@@ -29,56 +31,47 @@ bool DatabaseInstance::Insert(CollatzSolution &&solution) noexcept
           cass_statement_bind_bool(statement, 5, static_cast<cass_bool_t>(is_sequence));
      }
 
-     // Execute
-     CassFuture *query_future = cass_session_execute(session_, statement);
-     cass_statement_free(statement);
-
-     bool executionResult = CheckResult(query_future);
-     cass_future_free(query_future);
-
-     return executionResult;
+     FutureHolder::instance().PushWork(std::bind([this](CassStatement *statement) -> CassFuture *
+                                                 {
+          CassFuture *query_future = cass_session_execute(session_, statement);
+          cass_statement_free(statement);
+          return query_future; },
+                                                 statement));
 }
 
-const std::string DatabaseInstance::GetLastError() const noexcept
-{
-     return last_error_;
-}
-
-bool DatabaseInstance::CheckResult(CassFuture *future) noexcept
+std::string DatabaseInstance::CheckResult(CassFuture *future) noexcept
 {
      if (cass_future_error_code(future) != CASS_OK)
      {
           const char *message;
           size_t message_length;
           cass_future_error_message(future, &message, &message_length);
-          last_error_ = message;
-          return false;
+          return {message, message_length};
      }
-     return true;
+     return "";
 }
 
-bool DatabaseInstance::SimpleExecute(std::string_view query) noexcept
+std::pair<bool, std::string> DatabaseInstance::SimpleExecute(std::string_view query) noexcept
 {
      CassStatement *statement = cass_statement_new(query.data(), 0);
      CassFuture *query_future = cass_session_execute(session_, statement);
      cass_statement_free(statement);
 
-     bool executionResult = CheckResult(query_future);
+     std::string executionResult = CheckResult(query_future);
      cass_future_free(query_future);
 
-     return executionResult;
+     return std::make_pair(executionResult.empty(), std::move(executionResult));
 }
 
-std::vector<uint64_t> DatabaseInstance::GetMax() noexcept
+std::deque<uint64_t> DatabaseInstance::GetMax() noexcept
 {
      CassStatement *statement = cass_statement_new("SELECT MAX(sqs_sequence) FROM Collatz WHERE is_cycle IN (false, true);", 0);
      CassFuture *query_future = cass_session_execute(session_, statement);
      cass_statement_free(statement);
 
-     bool executionResult = CheckResult(query_future);
-     if (!executionResult)
+     auto error_string = CheckResult(query_future);
+     if (!error_string.empty())
      {
-          std::cout << this->last_error_ << "\n";
           return {};
      }
 
@@ -86,7 +79,7 @@ std::vector<uint64_t> DatabaseInstance::GetMax() noexcept
      const CassRow *row = cass_result_first_row(result);
      const CassValue *value = cass_row_get_column(row, 0);
 
-     std::vector<uint64_t> values;
+     std::deque<uint64_t> values;
      if (value != nullptr)
      {
           auto number_collector = [](const int count, const cass_byte_t *array) -> uint64_t

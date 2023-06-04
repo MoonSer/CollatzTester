@@ -4,7 +4,9 @@
 
 #include <string>
 #include <memory>
-#include <utility>
+#include <set>
+#include <mutex>
+#include <condition_variable>
 
 #include "CollatzSolution.h"
 
@@ -18,33 +20,28 @@ public:
      /// @param session
      DatabaseInstance(CassSession *session);
 
-     /// @brief Добавляет запись с CollatzSolution
-     /// @param[in] solution Решение Диофантова уравнения для добавления
+     /// @brief Добавляет запись в CollatzSolution
+     /// @param[in] solution Решение Диофантова уравнения
      /// @return true, если вставка выполнена успешно
-     bool Insert(CollatzSolution &&solution) noexcept;
+     void Insert(CollatzSolution &&solution) noexcept;
 
-     /// @brief Выполняет простой запрос к БД (без результата запроса и подготовки переменных)
-     /// @param query запрос для выполнения
+     /// @brief Выполняет простой запрос к БД (без результата запроса и подготовки переменных, юзается дл создание таблицы и пр-ва имен)
+     /// @param[in] query запрос для выполнения
      /// @return true, если вставка выполнена успешно
-     bool SimpleExecute(std::string_view query) noexcept;
-
-     /// @brief Возвращает строку с последней возникшей ошибкой
-     /// @return строка ошибки
-     const std::string GetLastError() const noexcept;
+     std::pair<bool, std::string> SimpleExecute(std::string_view query) noexcept;
 
      /// @brief Возвращает последнюю вычисленную sqs-последовательность
      /// @return sqs-последовательность
-     std::vector<uint64_t> GetMax() noexcept;
+     std::deque<uint64_t> GetMax() noexcept;
 
 private:
      /// @brief Проверяет результат выполнения Запроса к Cassandra
      /// @param future future запроса
      /// @return true, если
-     bool CheckResult(CassFuture *future) noexcept;
+     std::string CheckResult(CassFuture *future) noexcept;
 
 private:
      CassSession *session_;
-     std::string last_error_;
 };
 
 #endif
