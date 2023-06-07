@@ -5,6 +5,10 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 set(CMAKE_COLOR_MAKEFILE ON)
 
+find_package(Boost 1.56.0 REQUIRED) 
+find_package(mongocxx REQUIRED)
+find_package(bsoncxx REQUIRED)
+
 add_executable(${PROJECT_NAME} main.cpp
     source/ThreadPool.cpp
     source/ElementsHolder.cpp
@@ -12,4 +16,6 @@ add_executable(${PROJECT_NAME} main.cpp
     source/CollatzSolver.cpp
     source/Database.cpp
     source/DatabaseInstance.cpp)
-target_link_libraries(${PROJECT_NAME} PRIVATE gmp gmpxx cassandra)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE gmp gmpxx mongo::mongocxx_shared mongo::bsoncxx_shared)
+target_include_directories(${PROJECT_NAME} PRIVATE ${LIBMONGOCXX_INCLUDE_DIR} ${LIBBSONCXX_INCLUDE_DIR})

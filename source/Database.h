@@ -2,30 +2,32 @@
 #ifndef DATABASE_H
 #define DATABASE_H
 
-#include <string>
+#include <mongocxx/instance.hpp>
+#include <mongocxx/pool.hpp>
+
+#include <string_view>
 #include <memory>
 
 #include "DatabaseInstance.h"
 
-/// @brief Класс инициализирует БД и создаёт указатели на сессии
+/// @brief Класс инициализирует БД
 class Database
 {
 public:
-    /// @brief Конструктор, устанавливает настройки соединения
+    /// @brief Конструктор по умолчанию
     Database() noexcept;
-
-    /// @brief Выполняет подключение к Cassandra
-    /// @return пара. ключ - true, если задача выполнена успешно. Если нет - то значением будет текст ошибки
-    std::pair<bool, std::string> SetUp() noexcept;
 
     /// @brief Создаёт и возвращает указатель на DatabaseInstance
     /// @return указатель на DatabaseInstance
     std::unique_ptr<DatabaseInstance> GetInstance() noexcept;
 
+public:
+    static constexpr std::string_view database_name = "Collatz";
+    static constexpr std::string_view table_name = "Collatz";
+
 private:
-    CassFuture *connect_future_;
-    CassCluster *cluster_;
-    CassSession *session_;
+    mongocxx::instance instance_;
+    mongocxx::pool mongodb_pool_;
 };
 
 #endif

@@ -1,5 +1,14 @@
 #include "CollatzSolution.h"
 
+#include <bsoncxx/builder/basic/array.hpp>
+#include <bsoncxx/builder/basic/kvp.hpp>
+#include <bsoncxx/builder/basic/document.hpp>
+#include <bsoncxx/types.hpp>
+
+using bsoncxx::builder::basic::array;
+using bsoncxx::builder::basic::kvp;
+using bsoncxx::builder::basic::make_document;
+
 CollatzSolution::CollatzSolution(std::deque<uint64_t> &sqs_sequence)
     : sqs_sequence_(sqs_sequence) {}
 
@@ -66,45 +75,37 @@ mpz_class CollatzSolution::GetCropModificator(const mpz_class &x, const mpz_clas
      return c;
 }
 
-std::tuple<std::pair<CassDecimal, CassDecimal>, std::pair<CassDecimal, CassDecimal>, bool> CollatzSolution::GetCassResult() const noexcept
+bsoncxx::document::value CollatzSolution::GetMongoResult() const noexcept
 {
      mpz_class s1_exp = 2, sn_exp = 2;
      mpz_pow_ui(s1_exp.get_mpz_t(), s1_exp.get_mpz_t(), sqs_sequence_.front());
      mpz_pow_ui(sn_exp.get_mpz_t(), sn_exp.get_mpz_t(), sqs_sequence_.back());
 
-     mpz_class divisible = std::move(addition_.back() * sn_exp);
+     mpf_class divisible(std::move(addition_.back() * sn_exp));
      divisible -= addition_.front() * s1_exp;
 
      s1_exp *= base_.front();
      sn_exp *= base_.back();
      s1_exp -= sn_exp;
 
-     mpz_class divider = std::move(s1_exp);
+     mpf_class divider(std::move(s1_exp));
+     mpf_div(divisible.get_mpf_t(), divisible.get_mpf_t(), divider.get_mpf_t());
 
-     // @TODO Use m0 + m1 * t instead m0
-
-     return std::make_tuple(std::make_pair(GetCassResult(base_.front()), GetCassResult(addition_.front())),
-                            std::make_pair(GetCassResult(base_.back()), GetCassResult(addition_.back())),
-                            (mpz_divisible_p(divisible.get_mpz_t(), divider.get_mpz_t()) > 0));
+     return make_document(
+         kvp("first_base", base_.front().get_str()),
+         kvp("firs_addition", addition_.front().get_str()),
+         kvp("last_base", base_.back().get_str()),
+         kvp("last_addition", addition_.back().get_str()),
+         kvp("cycle_coeff", divisible.get_d()),
+         kvp("sqs_sequence", GetMongoSequence()));
 }
 
-CassCollection *CollatzSolution::GetCassSequense() const noexcept
+bsoncxx::array::value CollatzSolution::GetMongoSequence() const noexcept
 {
-     CassCollection *cass_collection(cass_collection_new(CASS_COLLECTION_TYPE_LIST, sqs_sequence_.size()));
-
-     for (const auto &sequence_member : sqs_sequence_)
+     array sqs_sequence;
+     for (const auto &sqs : sqs_sequence_)
      {
-          cass_collection_append_int64(cass_collection, sequence_member);
+          sqs_sequence.append(bsoncxx::types::b_int64(sqs));
      }
-     return cass_collection;
-}
-
-CassDecimal CollatzSolution::GetCassResult(const mpz_class &value) const noexcept
-{
-     size_t size = mpz_size(value.get_mpz_t()) * mp_bits_per_limb / 8;
-
-     std::unique_ptr<cass_byte_t[]> data(new cass_byte_t[size]);
-
-     mpz_export(data.get(), nullptr, 1, size, 0, 0, value.get_mpz_t());
-     return std::make_pair(std::move(data), size);
+     return sqs_sequence.extract();
 }
